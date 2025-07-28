@@ -15,19 +15,19 @@ fn decode_unsigned_value_from_string(encoded: &[u8], offset: u32) -> DecodingRes
         value |= ((byte & 0x1f) as i64) << (consumed * 5);
         consumed += 1;
     }
-    return DecodingResult{value: value, offset: offset + consumed};
+    DecodingResult{value, offset: offset + consumed}
 }
 
 fn decode_signed_value_from_string(encoded: &[u8], offset: u32) -> DecodingResult {
     let tmp_result: DecodingResult = decode_unsigned_value_from_string(encoded, offset);
     let tmp_value: i64 = tmp_result.value;
     if tmp_value & 1 == 1 {
-        return DecodingResult{
+        DecodingResult{
             value: !(tmp_value >> 1),
             offset: tmp_result.offset
         }
     } else {
-        return DecodingResult{
+        DecodingResult{
             value: tmp_value >> 1,
             offset: tmp_result.offset
         }
@@ -38,11 +38,11 @@ fn encode_unsigned_number(num: u64) -> Vec<u8>  {
     let mut encoded: Vec<u8> = vec![];
     let mut tmp: u64 = num;
     while tmp >= 0x20 {
-        encoded.push(((0x20 | (tmp as u8 & 0x1f)) + 63) as u8);
+        encoded.push((0x20 | (tmp as u8 & 0x1f)) + 63);
         tmp >>= 5;
     }
-    encoded.push((tmp as u8 + 63) as u8);
-    return encoded;
+    encoded.push(tmp as u8 + 63);
+    encoded
 }
 
 fn encode_signed_number(num: i64) -> Vec<u8> {
@@ -51,7 +51,7 @@ fn encode_signed_number(num: i64) -> Vec<u8> {
         sgn_num = !sgn_num;
     }
     let unsigned_num = sgn_num as u64;
-    return encode_unsigned_number(unsigned_num);
+    encode_unsigned_number(unsigned_num)
 }
 
 const YEAR2010: i64 = 1262304000;
@@ -61,19 +61,19 @@ fn decode(input: String) -> PyResult<Vec<(i64, f64, f64)>> {
     let mut vals: [i64; 3] = [YEAR2010, 0, 0];
     let mut bytes_consumed: u32 = 0;
     let mut decoding_result: DecodingResult;
-    let encoded: &[u8] = &input.as_bytes();
+    let encoded: &[u8] = input.as_bytes();
     let encoded_length: u32 = encoded.len() as u32;
     let mut output: Vec<(i64, f64, f64)> = Vec::new();
     
     while bytes_consumed < encoded_length {
-        for i in 0..3 {
+        for (i, val) in vals.iter_mut().enumerate() {
             if i == 0 && bytes_consumed != 0 {
                 decoding_result = decode_unsigned_value_from_string(encoded, bytes_consumed);
             } else {
                 decoding_result = decode_signed_value_from_string(encoded, bytes_consumed);
             }
             bytes_consumed = decoding_result.offset;
-            vals[i] += decoding_result.value;
+            *val += decoding_result.value;
         }
         output.push(
             (
@@ -117,7 +117,7 @@ fn encode(data: Vec<(f64, f64, f64)>) -> PyResult<String> {
         let longitude_diff: i64 = ((longitude - prev_longitude) * 1e5).round() as i64;
         output.append(&mut encode_signed_number(longitude_diff));
 
-        prev_timestamp += timestamp_diff as i64;
+        prev_timestamp += timestamp_diff;
         prev_latitude += (latitude_diff as f64) / 1e5;
         prev_longitude += (longitude_diff as f64) / 1e5;
    
