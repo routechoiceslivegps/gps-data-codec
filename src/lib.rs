@@ -1,5 +1,5 @@
-use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 
 struct DecodingResult {
     value: i64,
@@ -15,26 +15,29 @@ fn decode_unsigned_value_from_string(encoded: &[u8], offset: u32) -> DecodingRes
         value |= ((byte & 0x1f) as i64) << (consumed * 5);
         consumed += 1;
     }
-    DecodingResult{value, offset: offset + consumed}
+    DecodingResult {
+        value,
+        offset: offset + consumed,
+    }
 }
 
 fn decode_signed_value_from_string(encoded: &[u8], offset: u32) -> DecodingResult {
     let tmp_result: DecodingResult = decode_unsigned_value_from_string(encoded, offset);
     let tmp_value: i64 = tmp_result.value;
     if tmp_value & 1 == 1 {
-        DecodingResult{
+        DecodingResult {
             value: !(tmp_value >> 1),
-            offset: tmp_result.offset
+            offset: tmp_result.offset,
         }
     } else {
-        DecodingResult{
+        DecodingResult {
             value: tmp_value >> 1,
-            offset: tmp_result.offset
+            offset: tmp_result.offset,
         }
     }
 }
 
-fn encode_unsigned_number(num: u64) -> Vec<u8>  {
+fn encode_unsigned_number(num: u64) -> Vec<u8> {
     let mut encoded: Vec<u8> = vec![];
     let mut tmp: u64 = num;
     while tmp >= 0x20 {
@@ -64,7 +67,7 @@ fn decode(input: String) -> PyResult<Vec<(i64, f64, f64)>> {
     let encoded: &[u8] = input.as_bytes();
     let encoded_length: u32 = encoded.len() as u32;
     let mut output: Vec<(i64, f64, f64)> = Vec::new();
-    
+
     while bytes_consumed < encoded_length {
         for (i, val) in vals.iter_mut().enumerate() {
             if i == 0 && bytes_consumed != 0 {
@@ -75,17 +78,10 @@ fn decode(input: String) -> PyResult<Vec<(i64, f64, f64)>> {
             bytes_consumed = decoding_result.offset;
             *val += decoding_result.value;
         }
-        output.push(
-            (
-                vals[0],
-                (vals[1] as f64) / 1e5,
-                (vals[2] as f64) / 1e5
-            )
-        );
+        output.push((vals[0], (vals[1] as f64) / 1e5, (vals[2] as f64) / 1e5));
     }
     Ok(output)
 }
-
 
 #[pyfunction]
 fn encode(data: Vec<(f64, f64, f64)>) -> PyResult<String> {
@@ -97,8 +93,8 @@ fn encode(data: Vec<(f64, f64, f64)>) -> PyResult<String> {
     let mut is_first: bool = true;
     for point_object in data.iter() {
         let point_data = point_object;
-        let timestamp = point_data.0.round() as i64;   
-        let timestamp_diff = timestamp - prev_timestamp; 
+        let timestamp = point_data.0.round() as i64;
+        let timestamp_diff = timestamp - prev_timestamp;
         if is_first {
             output.append(&mut encode_signed_number(timestamp_diff));
             is_first = false;
@@ -108,7 +104,7 @@ fn encode(data: Vec<(f64, f64, f64)>) -> PyResult<String> {
             }
             output.append(&mut encode_unsigned_number(timestamp_diff as u64));
         }
-        
+
         let latitude: f64 = point_data.1;
         let latitude_diff: i64 = ((latitude - prev_latitude) * 1e5).round() as i64;
         output.append(&mut encode_signed_number(latitude_diff));
@@ -120,9 +116,8 @@ fn encode(data: Vec<(f64, f64, f64)>) -> PyResult<String> {
         prev_timestamp += timestamp_diff;
         prev_latitude += (latitude_diff as f64) / 1e5;
         prev_longitude += (longitude_diff as f64) / 1e5;
-   
     }
-    Ok(unsafe {String::from_utf8_unchecked(output)})
+    Ok(unsafe { String::from_utf8_unchecked(output) })
 }
 
 #[pymodule]
