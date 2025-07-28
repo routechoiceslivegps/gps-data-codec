@@ -1,6 +1,6 @@
 [package]
 name = "gps-data-codec"
-version = "1.6.6"
+version = "1.6.7"
 edition = "2024"
 license = "MIT"
 authors = ["Raphael Stefanini <raphael@routechoices.com>"]
