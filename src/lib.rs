@@ -2,9 +2,9 @@ use pyo3::pymodule;
 
 #[pymodule]
 mod gps_data_codec {
+    use pyo3::PyResult;
     use pyo3::exceptions::PyValueError;
-    use pyo3::prelude::*;
-
+    use pyo3::pyfunction;
     struct DecodingResult {
         value: i64,
         offset: u32,
