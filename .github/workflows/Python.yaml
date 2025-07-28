@@ -8,14 +8,14 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@latest
     - name: Build wheels
       run: |
         export RUSTFLAGS='-C target-cpu=skylake'
         docker run --rm -v $(pwd):/io \
           ghcr.io/pyo3/maturin \
           build --release --compatibility manylinux_2_28 -i python3.10 -i python3.11 -i python3.12
-    - uses: actions/setup-python
+    - uses: actions/setup-python@latest
       with:
         python-version: '3.12'
     - name: Install built wheel
@@ -23,7 +23,7 @@ jobs:
         pip install gps_data_codec --no-index --find-links target/wheels --force-reinstall
         python test.py
     - name: Archive wheels
-      uses: actions/upload-artifact
+      uses: actions/upload-artifact@latest
       with:
         name: dist
         path: target/wheels/*
@@ -34,7 +34,7 @@ jobs:
     if: "startsWith(github.ref, 'refs/tags/')"
     needs: [linux]
     steps:
-      - uses: actions/download-artifact
+      - uses: actions/download-artifact@latest
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
