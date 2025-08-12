@@ -89,38 +89,35 @@ mod gps_data_codec {
     }
 
     #[pyfunction]
-    fn encode(data: Vec<(f64, f64, f64)>) -> PyResult<String> {
+    fn encode(data: Vec<(i64, f64, f64)>) -> PyResult<String> {
         let mut prev_timestamp: i64 = YEAR2010;
-        let mut prev_latitude: f64 = 0.0;
-        let mut prev_longitude: f64 = 0.0;
+        let mut prev_latitude: i64 = 0;
+        let mut prev_longitude: i64 = 0;
 
         let mut output: Vec<u8> = vec![];
         let mut is_first: bool = true;
-        for point_object in data.iter() {
-            let point_data = point_object;
-            let timestamp = point_data.0.round() as i64;
+        for (timestamp, latitude, longitude) in data.iter() {
+            //let timestamp = *timestamp as i64;
+
             let timestamp_diff = timestamp - prev_timestamp;
+            let latitude_diff: i64 = (latitude * 1e5).round() as i64 - prev_latitude;
+            let longitude_diff: i64 = (longitude * 1e5).round() as i64 - prev_longitude;
+
+            prev_timestamp += timestamp_diff;
+            prev_latitude += latitude_diff;
+            prev_longitude += longitude_diff;
+
             if is_first {
                 output.append(&mut encode_signed_number(timestamp_diff));
                 is_first = false;
             } else {
-                if timestamp < prev_timestamp {
+                if *timestamp < prev_timestamp {
                     return Err(PyValueError::new_err("Input data is not sorted"));
                 }
                 output.append(&mut encode_unsigned_number(timestamp_diff as u64));
             }
-
-            let latitude: f64 = point_data.1;
-            let latitude_diff: i64 = ((latitude - prev_latitude) * 1e5).round() as i64;
             output.append(&mut encode_signed_number(latitude_diff));
-
-            let longitude: f64 = point_data.2;
-            let longitude_diff: i64 = ((longitude - prev_longitude) * 1e5).round() as i64;
             output.append(&mut encode_signed_number(longitude_diff));
-
-            prev_timestamp += timestamp_diff;
-            prev_latitude += (latitude_diff as f64) / 1e5;
-            prev_longitude += (longitude_diff as f64) / 1e5;
         }
         Ok(unsafe { String::from_utf8_unchecked(output) })
     }

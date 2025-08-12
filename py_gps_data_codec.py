@@ -3,7 +3,6 @@ A Python implementation of Google's Encoded Polyline Algorithm Format.
 """
 import io
 
-
 YEAR2010 = 1262304000
 
 def _write_unsigned(output, num):
