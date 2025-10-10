@@ -111,8 +111,6 @@ mod gps_data_codec {
         let mut output: Vec<u8> = vec![];
         let mut is_first: bool = true;
         for (timestamp, latitude, longitude) in data.iter() {
-            //let timestamp = *timestamp as i64;
-
             let timestamp_diff = timestamp - prev_timestamp;
             let latitude_diff: i64 = (latitude * 1e5).round() as i64 - prev_latitude;
             let longitude_diff: i64 = (longitude * 1e5).round() as i64 - prev_longitude;
