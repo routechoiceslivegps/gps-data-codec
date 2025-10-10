@@ -5,6 +5,7 @@ import py_gps_data_codec
 def test_lib():
     input = [(-1,0,0),(1628667993, 4.56543, -110.53621), (1628667994, 4.56553, -110.53625)]
     expected_encoded = '`o|sfjA??ya_fpo@}tzZhbtaT@SF'
+    print(gps_data_codec.extract_encoded_interval(expected_encoded, -2, 1628667994))
     encoded = gps_data_codec.encode(input)
     print(encoded)
     assert(encoded == expected_encoded)
@@ -25,7 +26,7 @@ def test_lib():
     t0 = time.perf_counter()
     x2 = py_gps_data_codec.decode(data)
     t1 = time.perf_counter()
-    s2 = py_gps_data_codec.encode(x1)
+    s2 = py_gps_data_codec.encode(x2)
     t2 = time.perf_counter()
     assert(x1 == x2)
     assert(s1 == s2)

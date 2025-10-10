@@ -108,6 +108,55 @@ mod gps_data_codec {
     }
 
     #[pyfunction]
+    fn extract_encoded_interval(input: String, from_ts: i64, end_ts: i64) -> PyResult<(String, usize)> {
+        let encoded = input.as_bytes();
+        let mut encodedi = encoded.iter();
+        let encoded_length: u32 = encoded.len() as u32;
+        let mut bytes_consumed: u32 = 0;
+        let mut timestamp: i64 = YEAR2010;
+        let mut latitude: i64 = 0;
+        let mut longitude: i64 = 0;
+        let mut start_found = false;
+        let mut prev_idx: u32 = 0;
+        let mut output: Vec<u8> = vec![];
+        let mut nb_pts = 0;
+        while bytes_consumed < encoded_length {
+            if bytes_consumed == 0 {
+                let decoding_result = decode_signed_value_from_string(&mut encodedi);
+                bytes_consumed += decoding_result.offset;
+                timestamp += decoding_result.value;
+            } else {
+                let decoding_result = decode_unsigned_value_from_string(&mut encodedi);
+                bytes_consumed += decoding_result.offset;
+                timestamp += decoding_result.value;
+            }
+            
+            let lat_decoding_result = decode_signed_value_from_string(&mut encodedi);
+            bytes_consumed += lat_decoding_result.offset;
+            let lng_decoding_result = decode_signed_value_from_string(&mut encodedi);
+            bytes_consumed += lng_decoding_result.offset;
+
+            if !start_found {
+                latitude += lat_decoding_result.value;
+                longitude += lng_decoding_result.value;
+                if timestamp >= from_ts && end_ts >= timestamp {
+                    start_found = true;
+                    encode_signed_number(&mut output, timestamp - YEAR2010);
+                    encode_signed_number(&mut output, latitude);
+                    encode_signed_number(&mut output, longitude);
+                    prev_idx = bytes_consumed;
+                    nb_pts += 1;
+                }
+                
+            } else if end_ts >= timestamp {
+                output.append(&mut encoded[prev_idx as usize..bytes_consumed as usize].to_vec());
+                prev_idx = bytes_consumed;
+                nb_pts += 1;
+            }
+        }
+        Ok((unsafe { String::from_utf8_unchecked(output) }, nb_pts))
+    }
+    #[pyfunction]
     fn encode(data: Vec<(i64, f64, f64)>) -> PyResult<String> {
         let mut prev_timestamp: i64 = YEAR2010;
         let mut prev_latitude: i64 = 0;
