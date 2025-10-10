@@ -81,6 +81,7 @@ mod gps_data_codec {
         let mut timestamp: i64 = YEAR2010;
         let mut latitude: i64 = 0;
         let mut longitude: i64 = 0;
+        let mut output: Vec<u8> = vec![];
 
         while bytes_consumed < encoded_length {
             if bytes_consumed == 0 {
