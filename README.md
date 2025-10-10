@@ -1,6 +1,6 @@
 # gps-data-codec
 
-Python library, implemented in rust, including base functions for encoding and decoding of gps data (timestamp, latitude, and longitude) using leb128 algorythm.
+Python library, implemented in rust, including base functions for encoding and decoding of gps data (timestamp, latitude, and longitude) using a algorithm similar to the one seen on encoded polylines.
 It is used to store competitors data on https://www.routechoices.com
 
 ## install
