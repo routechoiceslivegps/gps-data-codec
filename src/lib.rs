@@ -11,12 +11,12 @@ mod gps_data_codec {
         offset: u32,
     }
 
-    fn decode_unsigned_value_from_string(slice: &[u8], offset: u32) -> DecodingResult {
+    fn decode_unsigned_value_from_string<'a>(slice: &mut impl Iterator<Item = &'a u8>) -> DecodingResult {
         let mut result: i64 = 0;
         let mut shift = 0;
-        let mut position: u32 = offset;
+        let mut position: u32 = 0;
         loop {
-            let byte = slice[position as usize] - 63;
+            let byte = slice.next().unwrap() - 63;
             position += 1;
             if (byte & 0x20) == 0 {
                 result |= (byte as i64) << shift;
@@ -31,8 +31,8 @@ mod gps_data_codec {
         }
     }
 
-    fn decode_signed_value_from_string(encoded: &[u8], offset: u32) -> DecodingResult {
-        let tmp_result: DecodingResult = decode_unsigned_value_from_string(encoded, offset);
+    fn decode_signed_value_from_string<'a>(encoded: &mut impl Iterator<Item = &'a u8>) -> DecodingResult {
+        let tmp_result: DecodingResult = decode_unsigned_value_from_string(encoded);
         if tmp_result.value & 1 == 1 {
             DecodingResult {
                 value: !(tmp_result.value >> 1),
@@ -74,18 +74,18 @@ mod gps_data_codec {
         let mut vals: [i64; 3] = [YEAR2010, 0, 0];
         let mut bytes_consumed: u32 = 0;
         let mut decoding_result: DecodingResult;
-        let encoded: &[u8] = input.as_bytes();
+        let mut encoded = input.as_bytes().into_iter();
         let encoded_length: u32 = encoded.len() as u32;
         let mut output: Vec<(i64, f64, f64)> = Vec::new();
 
         while bytes_consumed < encoded_length {
             for (i, val) in vals.iter_mut().enumerate() {
                 if i == 0 && bytes_consumed != 0 {
-                    decoding_result = decode_unsigned_value_from_string(encoded, bytes_consumed);
+                    decoding_result = decode_unsigned_value_from_string(&mut encoded);
                 } else {
-                    decoding_result = decode_signed_value_from_string(encoded, bytes_consumed);
+                    decoding_result = decode_signed_value_from_string(&mut encoded);
                 }
-                bytes_consumed = decoding_result.offset;
+                bytes_consumed += decoding_result.offset;
                 *val += decoding_result.value;
             }
             output.push((vals[0], (vals[1] as f64) / 1e5, (vals[2] as f64) / 1e5));
