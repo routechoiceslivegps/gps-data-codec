@@ -139,19 +139,20 @@ mod gps_data_codec {
             if !start_found {
                 latitude += lat_decoding_result.value;
                 longitude += lng_decoding_result.value;
-                if timestamp >= from_ts && end_ts >= timestamp {
+                if timestamp >= from_ts && timestamp <= end_ts {
                     start_found = true;
                     encode_signed_number(&mut output, timestamp - YEAR2010);
                     encode_signed_number(&mut output, latitude);
                     encode_signed_number(&mut output, longitude);
                     prev_idx = bytes_consumed;
                     nb_pts += 1;
-                }
-                
-            } else if end_ts >= timestamp {
+                }  
+            } else if timestamp <= end_ts  {
                 output.append(&mut encoded[prev_idx as usize..bytes_consumed as usize].to_vec());
                 prev_idx = bytes_consumed;
                 nb_pts += 1;
+            } else if timestamp > end_ts {
+                break;
             }
         }
         Ok((unsafe { String::from_utf8_unchecked(output) }, nb_pts))
