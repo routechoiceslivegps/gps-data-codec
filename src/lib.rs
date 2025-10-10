@@ -71,24 +71,33 @@ mod gps_data_codec {
 
     #[pyfunction]
     fn decode(input: String) -> PyResult<Vec<(i64, f64, f64)>> {
-        let mut vals: [i64; 3] = [YEAR2010, 0, 0];
-        let mut bytes_consumed: u32 = 0;
-        let mut decoding_result: DecodingResult;
         let mut encoded = input.as_bytes().into_iter();
         let encoded_length: u32 = encoded.len() as u32;
-        let mut output: Vec<(i64, f64, f64)> = Vec::new();
-
+        let mut bytes_consumed: u32 = 0;
+        let mut timestamp: i64 = YEAR2010;
+        let mut latitude:  i64 = 0;
+        let mut longitude: i64 = 0;
+        
         while bytes_consumed < encoded_length {
-            for (i, val) in vals.iter_mut().enumerate() {
-                if i == 0 && bytes_consumed != 0 {
-                    decoding_result = decode_unsigned_value_from_string(&mut encoded);
-                } else {
-                    decoding_result = decode_signed_value_from_string(&mut encoded);
-                }
+            if bytes_consumed == 0 {
+                let decoding_result = decode_signed_value_from_string(&mut encoded);
                 bytes_consumed += decoding_result.offset;
-                *val += decoding_result.value;
+                timestamp += decoding_result.value;
+            } else {
+                let decoding_result = decode_unsigned_value_from_string(&mut encoded);
+                bytes_consumed += decoding_result.offset;
+                timestamp += decoding_result.value;
             }
-            output.push((vals[0], (vals[1] as f64) / 1e5, (vals[2] as f64) / 1e5));
+            
+            let decoding_result = decode_signed_value_from_string(&mut encoded);
+            bytes_consumed += decoding_result.offset;
+            latitude += decoding_result.value;
+
+            let decoding_result = decode_signed_value_from_string(&mut encoded);
+            bytes_consumed += decoding_result.offset;
+            longitude += decoding_result.value;
+
+            output.push((timestamp, (latitude as f64) / 1e5, (longitude as f64) / 1e5));
         }
         Ok(output)
     }
