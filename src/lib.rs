@@ -11,55 +11,60 @@ mod gps_data_codec {
         offset: u32,
     }
 
-    fn decode_unsigned_value_from_string(encoded: &[u8], offset: u32) -> DecodingResult {
-        let mut value: i64 = 0;
-        let mut consumed: u32 = 0;
-        let mut byte: u8 = 0;
-        while consumed == 0 || byte >= 0x20 {
-            byte = encoded[(consumed + offset) as usize] - 63;
-            value |= ((byte & 0x1f) as i64) << (consumed * 5);
-            consumed += 1;
-        }
-        DecodingResult {
-            value,
-            offset: offset + consumed,
+    fn decode_unsigned_value_from_string(slice: &[u8], offset: u32) -> DecodingResult {
+        let mut result: i64 = 0;
+        let mut shift = 0;
+        let mut position: u32 = offset;
+        loop {
+            let byte = slice[position as usize] - 63;
+            position += 1;
+            if (byte & 0x20) == 0 {
+                result |= (byte as i64) << shift;
+                return DecodingResult {
+                    value: result,
+                    offset: position,
+                }
+            } else {
+                result |= ((byte & 0x1f) as i64) << shift;
+            }
+            shift += 5
         }
     }
 
     fn decode_signed_value_from_string(encoded: &[u8], offset: u32) -> DecodingResult {
         let tmp_result: DecodingResult = decode_unsigned_value_from_string(encoded, offset);
-        let tmp_value: i64 = tmp_result.value;
-        if tmp_value & 1 == 1 {
+        if tmp_result.value & 1 == 1 {
             DecodingResult {
-                value: !(tmp_value >> 1),
+                value: !(tmp_result.value >> 1),
                 offset: tmp_result.offset,
             }
         } else {
             DecodingResult {
-                value: tmp_value >> 1,
+                value: tmp_result.value >> 1,
                 offset: tmp_result.offset,
             }
         }
     }
 
-    fn encode_unsigned_number(num: u64) -> Vec<u8> {
-        let mut encoded: Vec<u8> = vec![];
-        let mut tmp: u64 = num;
-        while tmp >= 0x20 {
-            encoded.push((0x20 | (tmp as u8 & 0x1f)) + 63);
-            tmp >>= 5;
+    fn encode_unsigned_number(out: &mut Vec<u8>, mut num: u64) {
+        loop {
+            if num < 0x20 {
+                out.push(num as u8 + 63);
+                break
+            } else {
+                out.push(((num as u8 & 0x1f) | 0x20) + 63);
+                num >>= 5;
+            }
         }
-        encoded.push(tmp as u8 + 63);
-        encoded
     }
 
-    fn encode_signed_number(num: i64) -> Vec<u8> {
+    fn encode_signed_number(out: &mut Vec<u8>, num: i64) {
         let mut sgn_num: i64 = num << 1;
         if num < 0 {
             sgn_num = !sgn_num;
         }
         let unsigned_num = sgn_num as u64;
-        encode_unsigned_number(unsigned_num)
+        encode_unsigned_number(out, unsigned_num);
     }
 
     const YEAR2010: i64 = 1262304000;
@@ -108,16 +113,16 @@ mod gps_data_codec {
             prev_longitude += longitude_diff;
 
             if is_first {
-                output.append(&mut encode_signed_number(timestamp_diff));
+                encode_signed_number(&mut output, timestamp_diff);
                 is_first = false;
             } else {
                 if *timestamp < prev_timestamp {
                     return Err(PyValueError::new_err("Input data is not sorted"));
                 }
-                output.append(&mut encode_unsigned_number(timestamp_diff as u64));
+                encode_unsigned_number(&mut output, timestamp_diff as u64);
             }
-            output.append(&mut encode_signed_number(latitude_diff));
-            output.append(&mut encode_signed_number(longitude_diff));
+            encode_signed_number(&mut output, latitude_diff);
+            encode_signed_number(&mut output, longitude_diff);
         }
         Ok(unsafe { String::from_utf8_unchecked(output) })
     }
