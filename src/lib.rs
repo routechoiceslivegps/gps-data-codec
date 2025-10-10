@@ -11,7 +11,9 @@ mod gps_data_codec {
         offset: u32,
     }
 
-    fn decode_unsigned_value_from_string<'a>(slice: &mut impl Iterator<Item = &'a u8>) -> DecodingResult {
+    fn decode_unsigned_value_from_string<'a>(
+        slice: &mut impl Iterator<Item = &'a u8>,
+    ) -> DecodingResult {
         let mut result: i64 = 0;
         let mut shift = 0;
         let mut position: u32 = 0;
@@ -23,7 +25,7 @@ mod gps_data_codec {
                 return DecodingResult {
                     value: result,
                     offset: position,
-                }
+                };
             } else {
                 result |= ((byte & 0x1f) as i64) << shift;
             }
@@ -31,7 +33,9 @@ mod gps_data_codec {
         }
     }
 
-    fn decode_signed_value_from_string<'a>(encoded: &mut impl Iterator<Item = &'a u8>) -> DecodingResult {
+    fn decode_signed_value_from_string<'a>(
+        encoded: &mut impl Iterator<Item = &'a u8>,
+    ) -> DecodingResult {
         let tmp_result: DecodingResult = decode_unsigned_value_from_string(encoded);
         if tmp_result.value & 1 == 1 {
             DecodingResult {
@@ -50,7 +54,7 @@ mod gps_data_codec {
         loop {
             if num < 0x20 {
                 out.push(num as u8 + 63);
-                break
+                break;
             } else {
                 out.push(((num as u8 & 0x1f) | 0x20) + 63);
                 num >>= 5;
@@ -75,9 +79,9 @@ mod gps_data_codec {
         let encoded_length: u32 = encoded.len() as u32;
         let mut bytes_consumed: u32 = 0;
         let mut timestamp: i64 = YEAR2010;
-        let mut latitude:  i64 = 0;
+        let mut latitude: i64 = 0;
         let mut longitude: i64 = 0;
-        
+
         while bytes_consumed < encoded_length {
             if bytes_consumed == 0 {
                 let decoding_result = decode_signed_value_from_string(&mut encoded);
@@ -88,7 +92,7 @@ mod gps_data_codec {
                 bytes_consumed += decoding_result.offset;
                 timestamp += decoding_result.value;
             }
-            
+
             let decoding_result = decode_signed_value_from_string(&mut encoded);
             bytes_consumed += decoding_result.offset;
             latitude += decoding_result.value;
