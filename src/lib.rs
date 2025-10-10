@@ -75,7 +75,7 @@ mod gps_data_codec {
 
     #[pyfunction]
     fn decode(input: String) -> PyResult<Vec<(i64, f64, f64)>> {
-        let mut encoded = input.as_bytes().into_iter();
+        let mut encoded = input.as_bytes().iter();
         let encoded_length: u32 = encoded.len() as u32;
         let mut bytes_consumed: u32 = 0;
         let mut timestamp: i64 = YEAR2010;
