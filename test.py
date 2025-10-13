@@ -11,6 +11,15 @@ def test_lib():
     assert(encoded == expected_encoded)
     output = gps_data_codec.decode(encoded)
     assert(output == input)
+    
+    
+    a = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (4, 0 ,0), (5, 0 ,0)])
+    b = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0 ,0)])
+    print(a)
+    print(b)
+    c = gps_data_codec.encoded_diff(a, b)
+    print(gps_data_codec.decode(c))
+    
     import time
     with open('test_data.txt', "r") as fp:
         data = fp.read()

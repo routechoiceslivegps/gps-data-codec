@@ -106,6 +106,153 @@ mod gps_data_codec {
         }
         Ok(output)
     }
+    
+    #[pyfunction]
+    fn encoded_diff(prev_input: String, input: String) -> PyResult<String> {
+        let encoded_p = prev_input.as_bytes();
+        let mut encoded_pi = encoded_p.iter();
+        let encoded_p_length: u32 = encoded_p.len() as u32;
+
+        let mut bytes_consumed_p: u32 = 0;
+        let mut timestamp_p: i64 = YEAR2010;
+        
+        let encoded = input.as_bytes();
+        let mut encoded_i = encoded.iter();
+        let encoded_length: u32 = encoded.len() as u32;
+
+        let mut bytes_consumed: u32 = 0;
+        let mut timestamp: i64 = YEAR2010;
+        let mut latitude: i64 = 0;
+        let mut longitude: i64 = 0;
+
+        let mut prev_timestamp: i64 = YEAR2010;
+        let mut prev_latitude: i64 = 0;
+        let mut prev_longitude: i64 = 0;
+
+        let mut output: Vec<u8> = vec![];
+        let mut is_first: bool = true;
+
+        // At first decode until prev data is exhausted
+        while bytes_consumed_p < encoded_p_length && bytes_consumed < encoded_length {
+            // We decode one point of both data
+            if bytes_consumed == 0 {
+                let decoding_result = decode_signed_value_from_string(&mut encoded_i);
+                timestamp += decoding_result.value;
+                bytes_consumed += decoding_result.offset;
+
+            } else {
+                let decoding_result = decode_unsigned_value_from_string(&mut encoded_i);
+                timestamp += decoding_result.value;
+                bytes_consumed += decoding_result.offset;
+            }
+
+            if bytes_consumed_p == 0 {
+                let decoding_result = decode_signed_value_from_string(&mut encoded_pi);
+                timestamp_p += decoding_result.value;
+                bytes_consumed_p += decoding_result.offset;
+            } else {
+                let decoding_result = decode_unsigned_value_from_string(&mut encoded_pi);
+                timestamp_p += decoding_result.value;
+                bytes_consumed_p += decoding_result.offset;
+            }
+
+            let lat_decoding_result = decode_signed_value_from_string(&mut encoded_i);
+            bytes_consumed += lat_decoding_result.offset;
+            latitude += lat_decoding_result.value;
+            let lng_decoding_result = decode_signed_value_from_string(&mut encoded_i);
+            bytes_consumed += lng_decoding_result.offset;
+            longitude += lng_decoding_result.value;
+            
+            let decoding_result = decode_signed_value_from_string(&mut encoded_pi);
+            bytes_consumed_p += decoding_result.offset;
+            let decoding_result = decode_signed_value_from_string(&mut encoded_pi);
+            bytes_consumed_p += decoding_result.offset;
+            
+            
+            // if the older data is exhausted stop and next loop will write data left in newest stream
+            if bytes_consumed_p >= encoded_p_length {
+                break;
+            }
+            // as long the timestamp differ write the newest data
+            while timestamp != timestamp_p {
+                // write the point that is discovered
+                let timestamp_diff = timestamp - prev_timestamp;
+                let latitude_diff: i64 = latitude - prev_latitude;
+                let longitude_diff: i64 = longitude - prev_longitude;
+
+                prev_timestamp += timestamp_diff;
+                prev_latitude += latitude_diff;
+                prev_longitude += longitude_diff;
+
+                if is_first {
+                    encode_signed_number(&mut output, timestamp_diff);
+                    is_first = false;
+                } else {
+                    encode_unsigned_number(&mut output, timestamp_diff as u64);
+                }
+                encode_signed_number(&mut output, latitude_diff);
+                encode_signed_number(&mut output, longitude_diff);
+                
+                // if newest stream is exhausted stop reading
+                if bytes_consumed >= encoded_length {
+                    break;
+                }
+                
+                // read next point
+                let decoding_result = decode_unsigned_value_from_string(&mut encoded_i);
+                bytes_consumed += decoding_result.offset;
+                timestamp += decoding_result.value;
+
+                let lat_decoding_result = decode_signed_value_from_string(&mut encoded_i);
+                bytes_consumed += lat_decoding_result.offset;
+                latitude += lat_decoding_result.value;
+
+                let lng_decoding_result = decode_signed_value_from_string(&mut encoded_i);
+                bytes_consumed += lng_decoding_result.offset;
+                longitude += lng_decoding_result.value;
+            }
+        }
+
+        // if there is still data in latest stream 
+        if bytes_consumed_p >= encoded_p_length && bytes_consumed < encoded_length {
+            // if the last point was same in both stream read next point
+            if timestamp == timestamp_p {
+                if bytes_consumed == 0 {
+                    let decoding_result = decode_signed_value_from_string(&mut encoded_i);
+                    timestamp += decoding_result.value;
+                    bytes_consumed += decoding_result.offset;
+                } else {
+                    let decoding_result = decode_unsigned_value_from_string(&mut encoded_i);
+                    bytes_consumed += decoding_result.offset;
+                    timestamp += decoding_result.value;
+                }
+                let lat_decoding_result = decode_signed_value_from_string(&mut encoded_i);
+                bytes_consumed += lat_decoding_result.offset;
+                latitude += lat_decoding_result.value;
+
+                let lng_decoding_result = decode_signed_value_from_string(&mut encoded_i);
+                bytes_consumed += lng_decoding_result.offset;
+                longitude += lng_decoding_result.value;
+            }
+        
+            // write the latest point that differ
+            let timestamp_diff = timestamp - prev_timestamp;
+            let latitude_diff: i64 = latitude - prev_latitude;
+            let longitude_diff: i64 = longitude - prev_longitude;
+
+            if is_first {
+                encode_signed_number(&mut output, timestamp_diff);
+            } else {
+                encode_unsigned_number(&mut output, timestamp_diff as u64);
+            }
+            encode_signed_number(&mut output, latitude_diff);
+            encode_signed_number(&mut output, longitude_diff);
+            
+            // the following data stay the same
+            output.append(&mut encoded[bytes_consumed as usize..].to_vec())
+        }
+        Ok(unsafe { String::from_utf8_unchecked(output) })
+    }
 
     #[pyfunction]
     fn extract_encoded_interval(input: String, from_ts: i64, end_ts: i64) -> PyResult<(String, usize)> {
