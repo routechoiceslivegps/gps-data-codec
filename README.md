@@ -1,22 +1,23 @@
 # gps-data-codec
 
-Python library, implemented in rust, including base functions for encoding and decoding of gps data (timestamp, latitude, and longitude) using a algorithm similar to the one seen on encoded polylines.
-It is used to store competitors data on https://www.routechoices.com
+Python library, implemented in Rust, that include base functions for encoding and decoding series of gps data (timestamp, latitude, longitude) using a algorithm similar to the one seen on encoded polylines.
 
-## install
+## Install
  
 ```
 pip install gps-data-codec
 ```
 
-
+# Usage
 ```
->> import gps_data_codec
->> gps_data_codec.encode([(1628667993, 4.56543, -110.536214), ]) # [(time, lat, lon), ...]
+>> from gps_data_codec import decode, encode
+>> encode([(1628667993, 4.56543, -110.536214)]) # [(unix epoch in seconds, latitude, longitude), ...]
 'qtaxyT}tzZhbtaT'
->> gps_data_codec.decode('qtaxyT}tzZhbtaT')
-[(1628...
+>> decode('qtaxyT}tzZhbtaT')
+[(1628667993, 4.56543, -110.53621)]
 ```
 
-# Warning:  
-  - The list of GPS points must be sorted by increasing timestamps.
+## Warning:
+  - timestamps are rounded to the closest integer value.
+  - latitudes and longitudes values are rounded to the 5th decimal precision when encoding.
+  - The series of timestamped locations must be sorted by timestamps in increasing order before encoding.
