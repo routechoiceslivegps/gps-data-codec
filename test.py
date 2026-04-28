@@ -18,16 +18,25 @@ def first_location_rust(locations_encoded):
 def test_lib():
     input = [(-1,0,0),(1628667993, 4.56543, -110.53621), (1628667994, 4.56553, -110.53625)]
     expected_encoded = '`o|sfjA??ya_fpo@}tzZhbtaT@SF'
-    print(gps_data_codec.extract_encoded_interval(expected_encoded, -2, 1628667994))
+    print("Full data")
     encoded = gps_data_codec.encode(input)
     print(encoded)
+
     assert(encoded == expected_encoded)
     output = gps_data_codec.decode(encoded)
     assert(output == input)
 
+    print("Extract Interval")
+    print(gps_data_codec.extract_encoded_interval(
+         expected_encoded,
+         0,
+         1628667993
+    ))
+
     
     a = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (4, 0 ,0), (5, 0 ,0)])
     b = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0 ,0)])
+    print("Test Encoded Diff")
     print(a)
     print(b)
     c = gps_data_codec.encoded_diff(a, b)
@@ -72,4 +81,3 @@ def test_lib():
 if __name__ == "__main__":
     test_lib()
 
-    
