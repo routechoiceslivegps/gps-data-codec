@@ -2,6 +2,19 @@ import gps_data_codec
 
 import py_gps_data_codec
 
+def first_location(locations_encoded):
+    n = 0
+    encoded = locations_encoded[:25]
+    for idx, x in enumerate(encoded):
+        if n == 3:
+            return gps_data_codec.decode(encoded[:idx])[0]
+        if ord(x) - 63 < 0x20:
+            n += 1
+
+def first_location_rust(locations_encoded):
+    return gps_data_codec.decode_first_location(locations_encoded)
+
+
 def test_lib():
     input = [(-1,0,0),(1628667993, 4.56543, -110.53621), (1628667994, 4.56553, -110.53625)]
     expected_encoded = '`o|sfjA??ya_fpo@}tzZhbtaT@SF'
@@ -11,7 +24,7 @@ def test_lib():
     assert(encoded == expected_encoded)
     output = gps_data_codec.decode(encoded)
     assert(output == input)
-    
+
     
     a = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (4, 0 ,0), (5, 0 ,0)])
     b = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0 ,0)])
@@ -23,6 +36,17 @@ def test_lib():
     import time
     with open('test_data.txt', "r") as fp:
         data = fp.read()
+    t0 = time.perf_counter()
+    for _ in range(100000):
+        first_location(data[:26])
+    t1 = time.perf_counter()
+    print("First location hybrid: ", t1 - t0)
+    t0 = time.perf_counter()
+    for _ in range(100000):
+        first_location_rust(data[:26])
+    t1 = time.perf_counter()
+    print("First location rust: ", t1 - t0)
+
     t0 = time.perf_counter()
     x1 = gps_data_codec.decode(data)
     t1 = time.perf_counter()

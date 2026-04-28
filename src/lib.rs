@@ -75,6 +75,18 @@ mod gps_data_codec {
         }
         Ok(output)
     }
+
+    #[pyfunction]
+    fn decode_first_location(input: &str) -> PyResult<(i64, f64, f64)> {
+        let data = input.as_bytes();
+        let mut idx: usize = 0;
+
+        let timestamp = YEAR2010 + decode_signed_value(data, &mut idx);
+        let latitude = decode_signed_value(data, &mut idx);
+        let longitude = decode_signed_value(data, &mut idx);
+
+        Ok((timestamp, (latitude as f64) / 1e5, (longitude as f64) / 1e5))
+    }
     
     #[pyfunction]
     fn encoded_diff(prev_input: &str, input: &str) -> PyResult<String> {
