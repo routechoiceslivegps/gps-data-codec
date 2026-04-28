@@ -14,10 +14,10 @@ jobs:
         export RUSTFLAGS='-C target-cpu=skylake'
         docker run --rm -v $(pwd):/io \
           ghcr.io/pyo3/maturin \
-          build --release --compatibility manylinux_2_28 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          build --release --compatibility manylinux_2_28 -i python3.10 -i python3.11 -i python3.12 -i python3.14 -i python3.13
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.14'
     - name: Install built wheel
       run: |
         pip install gps_data_codec --no-index --find-links target/wheels --force-reinstall
