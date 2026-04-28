@@ -131,7 +131,6 @@ mod gps_data_codec {
             decode_signed_value(encoded_p, &mut idx_p);
             decode_signed_value(encoded_p, &mut idx_p);
             
-            
             // if the older data is exhausted stop and next loop will write data left in newest stream
             if idx_p >= encoded_p_length {
                 break;
@@ -143,10 +142,6 @@ mod gps_data_codec {
                 let latitude_diff: i64 = latitude - prev_latitude;
                 let longitude_diff: i64 = longitude - prev_longitude;
 
-                prev_timestamp += timestamp_diff;
-                prev_latitude += latitude_diff;
-                prev_longitude += longitude_diff;
-
                 if is_first {
                     encode_signed_number(&mut output, timestamp_diff);
                     is_first = false;
@@ -155,12 +150,16 @@ mod gps_data_codec {
                 }
                 encode_signed_number(&mut output, latitude_diff);
                 encode_signed_number(&mut output, longitude_diff);
-                
+                                
+                prev_timestamp = timestamp;
+                prev_latitude = latitude;
+                prev_longitude = longitude;
+
                 // if newest stream is exhausted stop reading
                 if idx >= encoded_length {
                     break;
                 }
-                
+
                 // read next point
                 timestamp += decode_unsigned_value(encoded, &mut idx);
                 latitude += decode_signed_value(encoded, &mut idx);
@@ -208,10 +207,14 @@ mod gps_data_codec {
         let mut timestamp: i64 = YEAR2010;
         let mut latitude: i64 = 0;
         let mut longitude: i64 = 0;
+    
         let mut start_found = false;
-        let mut prev_idx: usize = 0;
+        let mut start_idx: usize = 0;
+        let mut end_idx: usize = 0;
+    
         let mut output: Vec<u8> = Vec::with_capacity(encoded_length);
         let mut nb_pts = 0;
+    
         while idx < encoded_length {
             if idx == 0 {
                 timestamp += decode_signed_value(encoded, &mut idx);
@@ -219,27 +222,29 @@ mod gps_data_codec {
                 timestamp += decode_unsigned_value(encoded, &mut idx);
             }
             
-            let lat_val = decode_signed_value(encoded, &mut idx);
-            let lng_val = decode_signed_value(encoded, &mut idx);
+            let lat_diff = decode_signed_value(encoded, &mut idx);
+            let lng_diff = decode_signed_value(encoded, &mut idx);
 
             if !start_found {
-                latitude += lat_val;
-                longitude += lng_val;
+                latitude += lat_diff;
+                longitude += lng_diff;
                 if timestamp >= from_ts && timestamp <= end_ts {
                     start_found = true;
+                    start_idx = idx;
                     encode_signed_number(&mut output, timestamp - YEAR2010);
                     encode_signed_number(&mut output, latitude);
                     encode_signed_number(&mut output, longitude);
-                    prev_idx = idx;
                     nb_pts += 1;
                 }  
             } else if timestamp <= end_ts  {
-                output.extend_from_slice(&encoded[prev_idx..idx]);
-                prev_idx = idx;
+                end_idx = idx;
                 nb_pts += 1;
-            } else if timestamp > end_ts {
+            } else {
                 break;
             }
+        }
+        if nb_pts > 1 {
+            output.extend_from_slice(&encoded[start_idx..end_idx]);
         }
         Ok((unsafe { String::from_utf8_unchecked(output) }, nb_pts))
     }
@@ -267,13 +272,12 @@ mod gps_data_codec {
                 }
                 encode_unsigned_number(&mut output, timestamp_diff as u64);
             }
+            encode_signed_number(&mut output, latitude_diff);
+            encode_signed_number(&mut output, longitude_diff);
 
             prev_timestamp += timestamp_diff;
             prev_latitude += latitude_diff;
             prev_longitude += longitude_diff;
-
-            encode_signed_number(&mut output, latitude_diff);
-            encode_signed_number(&mut output, longitude_diff);
         }
         Ok(unsafe { String::from_utf8_unchecked(output) })
     }
