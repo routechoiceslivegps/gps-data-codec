@@ -7,6 +7,11 @@ def test_lib():
         (1628667993, 4.56543, -110.53621),
         (1628667994, 4.56553, -110.53625)
     ]
+    bad_gps_data = [
+        (-1,0,0),
+        (1628667995, 4.56543, -110.53621),
+        (1628667994, 4.56553, -110.53625)
+    ]
     expected_encoded = '`o|sfjA??ya_fpo@}tzZhbtaT@SF'
     
     print("Encode/decode:")
@@ -16,6 +21,13 @@ def test_lib():
     assert(encoded == expected_encoded)
     output = gps_data_codec.decode(encoded)
     assert(output == gps_data)
+    
+    exception_raised = False
+    try:
+        gps_data_codec.encode(bad_gps_data)
+    except ValueError as e:
+        exception_raised = "Input data is not sorted" == f"{e}"
+    assert(exception_raised)
     print()
 
     print("Extract Interval (bound within):")
