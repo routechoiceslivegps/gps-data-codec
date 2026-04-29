@@ -1,19 +1,5 @@
 import gps_data_codec
 
-import py_gps_data_codec
-
-def first_location(locations_encoded):
-    n = 0
-    encoded = locations_encoded[:25]
-    for idx, x in enumerate(encoded):
-        if n == 3:
-            return gps_data_codec.decode(encoded[:idx])[0]
-        if ord(x) - 63 < 0x20:
-            n += 1
-
-def first_location_rust(locations_encoded):
-    return gps_data_codec.decode_first_location(locations_encoded)
-
 
 def test_lib():
     gps_data = [(-1,0,0),(1628667993, 4.56543, -110.53621), (1628667994, 4.56553, -110.53625)]
@@ -100,18 +86,7 @@ def test_lib():
     print("Decoding: ", t1 - t0)
     print("Encoding: ", t2 - t1)
     print("Total: ", t2 - t0)
-    t0 = time.perf_counter()
-    x2 = py_gps_data_codec.decode(data)
-    t1 = time.perf_counter()
-    s2 = py_gps_data_codec.encode(x2)
-    t2 = time.perf_counter()
-    assert(x1 == x2)
-    assert(s1 == s2)
     assert(data == s1)
-    print("-- Python --")
-    print("Decoding: ", t1 - t0)
-    print("Encoding: ", t2 - t1)
-    print("Total: ", t2 - t0)
 
 
 if __name__ == "__main__":
