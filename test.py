@@ -2,7 +2,11 @@ import gps_data_codec
 
 
 def test_lib():
-    gps_data = [(-1,0,0),(1628667993, 4.56543, -110.53621), (1628667994, 4.56553, -110.53625)]
+    gps_data = [
+        (-1,0,0),
+        (1628667993, 4.56543, -110.53621),
+        (1628667994, 4.56553, -110.53625)
+    ]
     expected_encoded = '`o|sfjA??ya_fpo@}tzZhbtaT@SF'
     
     print("Encode/decode:")
