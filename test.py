@@ -16,46 +16,81 @@ def first_location_rust(locations_encoded):
 
 
 def test_lib():
-    input = [(-1,0,0),(1628667993, 4.56543, -110.53621), (1628667994, 4.56553, -110.53625)]
+    gps_data = [(-1,0,0),(1628667993, 4.56543, -110.53621), (1628667994, 4.56553, -110.53625)]
     expected_encoded = '`o|sfjA??ya_fpo@}tzZhbtaT@SF'
-    print("Full data")
-    encoded = gps_data_codec.encode(input)
-    print(encoded)
-
+    
+    print("Encode/decode:")
+    encoded = gps_data_codec.encode(gps_data)
+    print(f"expected: {expected_encoded}")
+    print(f"actual:   {encoded}")
     assert(encoded == expected_encoded)
     output = gps_data_codec.decode(encoded)
-    assert(output == input)
+    assert(output == gps_data)
+    print()
 
-    print("Extract Interval")
-    print(gps_data_codec.extract_encoded_interval(
+    print("Extract Interval (bound within):")
+    expected_encoded = "qtaxyT}tzZhbtaT"
+    encoded, nb_pts = gps_data_codec.extract_encoded_interval(
          expected_encoded,
          0,
          1628667993
-    ))
+    )
+    print(f"expected: {expected_encoded}")
+    print(f"actual:   {encoded}")
+    assert(expected_encoded == encoded)
+    assert(nb_pts == 1)
+    print()
 
+    print("Extract Interval (bound includes start):")
+    expected_encoded = "`o|sfjA??ya_fpo@}tzZhbtaT"
+    encoded, nb_pts = gps_data_codec.extract_encoded_interval(
+         expected_encoded,
+         -2,
+         1628667993
+    )
+    print(f"expected: {expected_encoded}")
+    print(f"actual:   {encoded}")
+    assert(expected_encoded == encoded)
+    assert(nb_pts == 2)
+    print()
     
-    a = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (4, 0 ,0), (5, 0 ,0)])
-    b = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (3, 0, 0), (4, 0 ,0)])
-    print("Test Encoded Diff")
-    print(a)
-    print(b)
+    print("Extract Interval (bound includes end):")
+    expected_encoded = "qtaxyT}tzZhbtaT@SF"
+    encoded, nb_pts = gps_data_codec.extract_encoded_interval(
+         expected_encoded,
+         0,
+         2628667993
+    )
+    print(f"expected: {expected_encoded}")
+    print(f"actual:   {encoded}")
+    assert(expected_encoded == encoded)
+    assert(nb_pts == 2)
+    print()
+
+    print("Encoded Diff:")
+    a = gps_data_codec.encode([(1, 0, 0), (2, 0, 0), (4, 0, 0)])
+    b = gps_data_codec.encode([(2, 0, 0), (3, 0, 0), (4, 0 ,0), (6, 0, 0)])
+    expected_encoded = "xn|sfjA??B??"
     c = gps_data_codec.encoded_diff(a, b)
-    print(gps_data_codec.decode(c))
+    print(f"expected: {expected_encoded}")
+    print(f"actual:   {c}")
+    print(f"new timestamps: {[pt[0] for pt in gps_data_codec.decode(c)]}")
+
+    assert(c == expected_encoded)
+    print()
     
+    print("First point:")
+    first_point = gps_data_codec.decode_first_location("`o|sfjA??ya_fpo@}tz")
+    expected = (-1,0.0,0.0)
+    print(f"expected: {expected}")
+    print(f"actual:   {first_point}")
+    assert(first_point == expected)
+    print()
+    
+    print("Perormance testing:")
     import time
     with open('test_data.txt', "r") as fp:
         data = fp.read()
-    t0 = time.perf_counter()
-    for _ in range(100000):
-        first_location(data[:26])
-    t1 = time.perf_counter()
-    print("First location hybrid: ", t1 - t0)
-    t0 = time.perf_counter()
-    for _ in range(100000):
-        first_location_rust(data[:26])
-    t1 = time.perf_counter()
-    print("First location rust: ", t1 - t0)
-
     t0 = time.perf_counter()
     x1 = gps_data_codec.decode(data)
     t1 = time.perf_counter()
@@ -72,6 +107,7 @@ def test_lib():
     t2 = time.perf_counter()
     assert(x1 == x2)
     assert(s1 == s2)
+    assert(data == s1)
     print("-- Python --")
     print("Decoding: ", t1 - t0)
     print("Encoding: ", t2 - t1)

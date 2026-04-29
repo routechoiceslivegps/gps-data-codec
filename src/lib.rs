@@ -87,14 +87,14 @@ mod gps_data_codec {
 
         Ok((timestamp, (latitude as f64) / 1e5, (longitude as f64) / 1e5))
     }
-    
+
     #[pyfunction]
     fn encoded_diff(prev_input: &str, input: &str) -> PyResult<String> {
         let encoded_p = prev_input.as_bytes();
         let encoded_p_length = encoded_p.len();
         let mut idx_p: usize = 0;
         let mut timestamp_p: i64 = YEAR2010;
-        
+
         let encoded = input.as_bytes();
         let encoded_length = encoded.len();
         let mut idx: usize = 0;
@@ -110,38 +110,40 @@ mod gps_data_codec {
         let mut output: Vec<u8> = Vec::with_capacity(encoded_length);
         let mut is_first: bool = true;
 
-        // At first decode until prev data is exhausted
-        while idx_p < encoded_p_length && idx < encoded_length {
-            // We decode one point of both data
-            if idx == 0 {
-                timestamp += decode_signed_value(encoded, &mut idx);
-            } else {
-                timestamp += decode_unsigned_value(encoded, &mut idx);
-            }
-
+        'decoder: while idx_p < encoded_p_length && idx < encoded_length {
+            // We decode one point of each stream
             if idx_p == 0 {
                 timestamp_p += decode_signed_value(encoded_p, &mut idx_p);
             } else {
                 timestamp_p += decode_unsigned_value(encoded_p, &mut idx_p);
             }
+            decode_signed_value(encoded_p, &mut idx_p);
+            decode_signed_value(encoded_p, &mut idx_p);
 
+            if idx == 0 {
+                timestamp += decode_signed_value(encoded, &mut idx);
+            } else {
+                timestamp += decode_unsigned_value(encoded, &mut idx);
+            }
             latitude += decode_signed_value(encoded, &mut idx);
             longitude += decode_signed_value(encoded, &mut idx);
-            
-            decode_signed_value(encoded_p, &mut idx_p);
-            decode_signed_value(encoded_p, &mut idx_p);
-            
-            // if the older data is exhausted stop and next loop will write data left in newest stream
-            if idx_p >= encoded_p_length {
-                break;
+
+            // If the prev data contains points that are before the new stream first timestamp, skip those
+            while is_first && timestamp_p < timestamp {
+                if idx_p >= encoded_p_length {
+                    break 'decoder;
+                }
+                timestamp_p += decode_unsigned_value(encoded_p, &mut idx_p);
+                decode_signed_value(encoded_p, &mut idx_p);
+                decode_signed_value(encoded_p, &mut idx_p);
             }
-            // as long the timestamp differ write the newest data
+
+            // As long the timestamp differ write the new data to the output
             while timestamp != timestamp_p {
                 // write the point that is discovered
                 let timestamp_diff = timestamp - prev_timestamp;
                 let latitude_diff: i64 = latitude - prev_latitude;
                 let longitude_diff: i64 = longitude - prev_longitude;
-
                 if is_first {
                     encode_signed_number(&mut output, timestamp_diff);
                     is_first = false;
@@ -150,14 +152,14 @@ mod gps_data_codec {
                 }
                 encode_signed_number(&mut output, latitude_diff);
                 encode_signed_number(&mut output, longitude_diff);
-                                
+
                 prev_timestamp = timestamp;
                 prev_latitude = latitude;
                 prev_longitude = longitude;
 
                 // if newest stream is exhausted stop reading
                 if idx >= encoded_length {
-                    break;
+                    break 'decoder;
                 }
 
                 // read next point
@@ -167,24 +169,19 @@ mod gps_data_codec {
             }
         }
 
-        // if there is still data in latest stream 
+        // if there is still data in new stream, while we exhusted prev stream, write the remaining data
         if idx_p >= encoded_p_length && idx < encoded_length {
-            // if the last point was same in both stream read next point
+            // if the last point was same in both stream, read next point
             if timestamp == timestamp_p {
-                if idx == 0 {
-                    timestamp += decode_signed_value(encoded, &mut idx);
-                } else {
-                    timestamp += decode_unsigned_value(encoded, &mut idx);
-                }
+                timestamp += decode_unsigned_value(encoded, &mut idx);
                 latitude += decode_signed_value(encoded, &mut idx);
                 longitude += decode_signed_value(encoded, &mut idx);
             }
-        
-            // write the latest point that differ
-            let timestamp_diff = timestamp - prev_timestamp;
+
+            // Encode the first new point
+            let timestamp_diff: i64 = timestamp - prev_timestamp;
             let latitude_diff: i64 = latitude - prev_latitude;
             let longitude_diff: i64 = longitude - prev_longitude;
-
             if is_first {
                 encode_signed_number(&mut output, timestamp_diff);
             } else {
@@ -192,36 +189,40 @@ mod gps_data_codec {
             }
             encode_signed_number(&mut output, latitude_diff);
             encode_signed_number(&mut output, longitude_diff);
-            
-            // the following data stay the same
+
+            // Copy the following data as it that stays the same
             output.extend_from_slice(&encoded[idx..]);
         }
         Ok(unsafe { String::from_utf8_unchecked(output) })
     }
 
     #[pyfunction]
-    fn extract_encoded_interval(input: &str, from_ts: i64, end_ts: i64) -> PyResult<(String, usize)> {
+    fn extract_encoded_interval(
+        input: &str,
+        from_ts: i64,
+        end_ts: i64,
+    ) -> PyResult<(String, usize)> {
         let encoded = input.as_bytes();
         let encoded_length = encoded.len();
         let mut idx: usize = 0;
         let mut timestamp: i64 = YEAR2010;
         let mut latitude: i64 = 0;
         let mut longitude: i64 = 0;
-    
+
         let mut start_found = false;
         let mut start_idx: usize = 0;
         let mut end_idx: usize = 0;
-    
+
         let mut output: Vec<u8> = Vec::with_capacity(encoded_length);
         let mut nb_pts = 0;
-    
+
         while idx < encoded_length {
             if idx == 0 {
                 timestamp += decode_signed_value(encoded, &mut idx);
             } else {
                 timestamp += decode_unsigned_value(encoded, &mut idx);
             }
-            
+
             let lat_diff = decode_signed_value(encoded, &mut idx);
             let lng_diff = decode_signed_value(encoded, &mut idx);
 
@@ -235,8 +236,8 @@ mod gps_data_codec {
                     encode_signed_number(&mut output, latitude);
                     encode_signed_number(&mut output, longitude);
                     nb_pts += 1;
-                }  
-            } else if timestamp <= end_ts  {
+                }
+            } else if timestamp <= end_ts {
                 end_idx = idx;
                 nb_pts += 1;
             } else {
